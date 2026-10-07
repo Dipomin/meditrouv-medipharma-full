@@ -1,0 +1,183 @@
+/**
+ * Cœur HTTP partagé (source unique pour tous les appels réseau).
+ *
+ * - expiration systématique des requêtes (AbortController, 15 s) ;
+ * - erreurs typées `ApiError` distinguant réseau, expiration, HTTP,
+ *   404, réponse vide et JSON invalide (plus d'échec silencieux) ;
+ * - corps d'erreur serveur tronqué et uniquement journalisé en dev ;
+ * - déballage de l'enveloppe `{ data }` quand elle est présente.
+ */
+
+import { logger } from "./logger";
+import { OFFLINE_MESSAGE, ensureOnline } from "./offline";
+
+export const REQUEST_TIMEOUT_MS = 15000;
+
+export type ApiErrorKind =
+  | "network"
+  | "timeout"
+  | "http"
+  | "not-found"
+  | "parse"
+  | "empty";
+
+export type ApiErrorOptions = {
+  kind: ApiErrorKind;
+  status?: number;
+};
+
+export class ApiError extends Error {
+  readonly kind: ApiErrorKind;
+  readonly status?: number;
+
+  constructor(message: string, options: ApiErrorOptions) {
+    super(message);
+    this.name = "ApiError";
+    this.kind = options.kind;
+    this.status = options.status;
+  }
+}
+
+const parseJsonBody = <T>(text: string, url: string): T => {
+  try {
+    const data = JSON.parse(text) as unknown;
+    if (data !== null && typeof data === "object" && "data" in data) {
+      return (data as { data: T }).data;
+    }
+    return data as T;
+  } catch (error) {
+    logger.debug(
+      `Réponse non-JSON de ${url} : ${text.substring(0, 200)}`,
+      error
+    );
+    throw new ApiError("Réponse du serveur illisible (JSON invalide).", {
+      kind: "parse",
+    });
+  }
+};
+
+const request = async <T>(url: string, options: RequestInit): Promise<T> => {
+  if (!(await ensureOnline())) {
+    throw new ApiError(OFFLINE_MESSAGE, { kind: "network" });
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    logger.debug(`Appel API : ${options.method ?? "GET"} ${url}`);
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...((options.headers as Record<string, string> | undefined) ?? {}),
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new ApiError("Ressource introuvable (404).", {
+          kind: "not-found",
+          status: 404,
+        });
+      }
+      if (response.status === 401) {
+        throw new ApiError("Session expirée. Veuillez vous reconnecter.", {
+          kind: "http",
+          status: 401,
+        });
+      }
+      if (response.status === 403) {
+        throw new ApiError("Accès refusé.", { kind: "http", status: 403 });
+      }
+      throw new ApiError(
+        `Erreur du serveur (${response.status}). Veuillez réessayer.`,
+        { kind: "http", status: response.status }
+      );
+    }
+
+    const text = await response.text();
+    if (text.trim() === "") {
+      throw new ApiError("Réponse vide du serveur.", { kind: "empty" });
+    }
+    return parseJsonBody<T>(text, url);
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new ApiError(
+        "Le serveur met trop longtemps à répondre (délai dépassé).",
+        { kind: "timeout" }
+      );
+    }
+    throw new ApiError(OFFLINE_MESSAGE, { kind: "network" });
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+export const getJson = <T>(url: string): Promise<T> =>
+  request<T>(url, { method: "GET" });
+
+export const postJson = <T>(url: string, body: unknown): Promise<T> =>
+  request<T>(url, { method: "POST", body: JSON.stringify(body) });
+
+export const putJson = <T>(url: string, body: unknown): Promise<T> =>
+  request<T>(url, { method: "PUT", body: JSON.stringify(body) });
+
+export const deleteJson = <T>(url: string): Promise<T> =>
+  request<T>(url, { method: "DELETE" });
+
+export const patchJson = <T>(url: string, body: unknown): Promise<T> =>
+  request<T>(url, { method: "PATCH", body: JSON.stringify(body) });
+
+// Variantes authentifiées (Medipharma) : la session pharmacien transite
+// dans le header `x-pharmacien-id`, vérifié côté serveur.
+export const authHeaders = (pharmacienId: string): Record<string, string> => ({
+  "x-pharmacien-id": pharmacienId,
+});
+
+export const getJsonAuth = <T>(url: string, pharmacienId: string): Promise<T> =>
+  request<T>(url, { method: "GET", headers: authHeaders(pharmacienId) });
+
+export const postJsonAuth = <T>(
+  url: string,
+  body: unknown,
+  pharmacienId: string
+): Promise<T> =>
+  request<T>(url, {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: authHeaders(pharmacienId),
+  });
+
+export const patchJsonAuth = <T>(
+  url: string,
+  body: unknown,
+  pharmacienId: string
+): Promise<T> =>
+  request<T>(url, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+    headers: authHeaders(pharmacienId),
+  });
+
+export const deleteJsonAuth = <T>(
+  url: string,
+  pharmacienId: string
+): Promise<T> =>
+  request<T>(url, { method: "DELETE", headers: authHeaders(pharmacienId) });
+
+export default {
+  getJson,
+  postJson,
+  putJson,
+  patchJson,
+  deleteJson,
+  getJsonAuth,
+  postJsonAuth,
+  patchJsonAuth,
+  deleteJsonAuth,
+  ApiError,
+};
