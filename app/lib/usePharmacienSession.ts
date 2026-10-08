@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePharmacienAuth } from "../context/PharmacienAuthContext";
 import { pharmacienAPI } from "./api";
 import { logger } from "./logger";
+import { isSamePharmacien } from "./session";
 import type { Pharmacien } from "./types";
 
 export const usePharmacienSession = (): {
@@ -26,7 +27,12 @@ export const usePharmacienSession = (): {
     }
     try {
       const fresh = await pharmacienAPI.me(pharmacien.id);
-      await updatePharmacien(fresh);
+      // Profil inchangé : ne rien écrire. Chaque écriture crée une
+      // nouvelle identité d'objet qui re-déclenche tous les effets
+      // dépendant du profil (re-fetch, redirections).
+      if (!isSamePharmacien(pharmacien, fresh)) {
+        await updatePharmacien(fresh);
+      }
     } catch (error) {
       // Hors-ligne ou session expirée : garder le profil local.
       logger.warn("Rafraîchissement du profil impossible.", error);

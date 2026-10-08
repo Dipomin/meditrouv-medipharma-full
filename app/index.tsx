@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useIsFocused, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Image,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 
 import { usePharmacienAuth } from "./context/PharmacienAuthContext";
+import { shouldAutoEnterDashboard } from "./lib/session";
 import {
   isTablet,
   responsiveSpacing,
@@ -22,7 +23,10 @@ import {
 
 export default function Index() {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const { pharmacien, isLoading } = usePharmacienAuth();
+  const pharmacienId = pharmacien?.id;
+  const redirectedRef = useRef(false);
   const [fadeAnim] = useState(() => new Animated.Value(0));
   const [slideAnim] = useState(() => new Animated.Value(50));
 
@@ -45,12 +49,23 @@ export default function Index() {
     };
   }, [fadeAnim, slideAnim]);
 
-  // Session existante : entrée directe dans l'espace pro.
+  // Session existante : entrée directe dans l'espace pro, uniquement
+  // quand l'accueil est affiché (il reste monté en fond de pile après
+  // navigation : rediriger depuis l'arrière-plan re-monterait l'écran
+  // courant à chaque rafraîchissement de session).
   useEffect(() => {
-    if (!isLoading && pharmacien) {
+    if (
+      shouldAutoEnterDashboard({
+        isLoading,
+        isFocused,
+        pharmacienId,
+        hasRedirected: redirectedRef.current,
+      })
+    ) {
+      redirectedRef.current = true;
       router.replace("/dashboard");
     }
-  }, [isLoading, pharmacien, router]);
+  }, [isLoading, isFocused, pharmacienId, router]);
 
   return (
     <>

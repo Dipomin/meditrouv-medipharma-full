@@ -109,17 +109,29 @@ export default function InscriptionScreen() {
       await login(pharmacien);
       Alert.alert(
         "Compte créé",
-        "Bienvenue sur Medipharma ! Choisissez votre abonnement pour activer les alertes.",
+        form.password
+          ? "Bienvenue sur Medipharma ! Choisissez votre abonnement pour activer les alertes."
+          : "Bienvenue sur Medipharma ! Choisissez votre abonnement pour activer les alertes. Sans mot de passe, vos prochaines connexions se feront avec votre numéro WhatsApp.",
         [{ text: "Continuer", onPress: () => router.replace("/abonnement") }]
       );
     } catch (error) {
       logger.error("Échec de l'inscription.", error);
-      Alert.alert(
-        "Erreur",
-        error instanceof ApiError
-          ? error.message
-          : "Impossible de créer le compte. Réessayez."
-      );
+      if (error instanceof ApiError && error.status === 409) {
+        Alert.alert("Compte existant", error.message, [
+          { text: "Annuler", style: "cancel" },
+          {
+            text: "Se connecter",
+            onPress: () => router.push("/auth"),
+          },
+        ]);
+      } else {
+        Alert.alert(
+          "Erreur",
+          error instanceof ApiError
+            ? error.message
+            : "Impossible de créer le compte. Réessayez."
+        );
+      }
     } finally {
       setLoading(false);
     }
