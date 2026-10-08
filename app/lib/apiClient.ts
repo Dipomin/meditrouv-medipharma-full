@@ -8,35 +8,14 @@
  * - déballage de l'enveloppe `{ data }` quand elle est présente.
  */
 
+import { ApiError, toHttpError } from "./httpErrors";
 import { logger } from "./logger";
 import { OFFLINE_MESSAGE, ensureOnline } from "./offline";
 
+export { ApiError } from "./httpErrors";
+export type { ApiErrorKind, ApiErrorOptions } from "./httpErrors";
+
 export const REQUEST_TIMEOUT_MS = 15000;
-
-export type ApiErrorKind =
-  | "network"
-  | "timeout"
-  | "http"
-  | "not-found"
-  | "parse"
-  | "empty";
-
-export type ApiErrorOptions = {
-  kind: ApiErrorKind;
-  status?: number;
-};
-
-export class ApiError extends Error {
-  readonly kind: ApiErrorKind;
-  readonly status?: number;
-
-  constructor(message: string, options: ApiErrorOptions) {
-    super(message);
-    this.name = "ApiError";
-    this.kind = options.kind;
-    this.status = options.status;
-  }
-}
 
 const parseJsonBody = <T>(text: string, url: string): T => {
   try {
@@ -74,29 +53,13 @@ const request = async <T>(url: string, options: RequestInit): Promise<T> => {
       signal: controller.signal,
     });
 
+    // Corps lu une fois (consommable unique) : il porte le message
+    // d'erreur explicite du serveur en cas d'échec (`{ "error" }`).
+    const text = await response.text();
     if (!response.ok) {
-      if (response.status === 404) {
-        throw new ApiError("Ressource introuvable (404).", {
-          kind: "not-found",
-          status: 404,
-        });
-      }
-      if (response.status === 401) {
-        throw new ApiError("Session expirée. Veuillez vous reconnecter.", {
-          kind: "http",
-          status: 401,
-        });
-      }
-      if (response.status === 403) {
-        throw new ApiError("Accès refusé.", { kind: "http", status: 403 });
-      }
-      throw new ApiError(
-        `Erreur du serveur (${response.status}). Veuillez réessayer.`,
-        { kind: "http", status: response.status }
-      );
+      throw toHttpError(response.status, text);
     }
 
-    const text = await response.text();
     if (text.trim() === "") {
       throw new ApiError("Réponse vide du serveur.", { kind: "empty" });
     }

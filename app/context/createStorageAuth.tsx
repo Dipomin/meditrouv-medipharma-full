@@ -9,8 +9,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -69,55 +71,69 @@ export const createStorageAuth = <T extends object>(
       };
     }, []);
 
-    const login = async (data: T): Promise<void> => {
-      try {
-        await AsyncStorage.setItem(options.storageKey, JSON.stringify(data));
-        setSession(data);
-      } catch (error) {
-        logger.error("Échec de la persistance de session.", error);
-        throw error;
-      }
-    };
+    // Actions stabilisées : sans useCallback, chaque rendu du Provider
+    // créait de nouvelles identités qui re-déclenchaient les effets
+    // consommateurs (rafraîchissement de session, re-fetch écrans).
+    // (`options.*` est stable : fabrique appelée au niveau module.)
+    const storageKey = options.storageKey;
+    const extraKeysToClear = options.extraKeysToClear;
+    const onLogoutExtra = options.onLogoutExtra;
 
-    const logout = async (): Promise<void> => {
+    const login = useCallback(
+      async (data: T): Promise<void> => {
+        try {
+          await AsyncStorage.setItem(storageKey, JSON.stringify(data));
+          setSession(data);
+        } catch (error) {
+          logger.error("Échec de la persistance de session.", error);
+          throw error;
+        }
+      },
+      [storageKey]
+    );
+
+    const logout = useCallback(async (): Promise<void> => {
       try {
-        await AsyncStorage.removeItem(options.storageKey);
-        for (const key of options.extraKeysToClear ?? []) {
+        await AsyncStorage.removeItem(storageKey);
+        for (const key of extraKeysToClear ?? []) {
           await AsyncStorage.removeItem(key);
         }
-        await options.onLogoutExtra?.();
+        await onLogoutExtra?.();
         setSession(null);
       } catch (error) {
         logger.error("Échec de la déconnexion.", error);
         throw error;
       }
-    };
+    }, [storageKey, extraKeysToClear, onLogoutExtra]);
 
-    const updateSession = async (partial: Partial<T>): Promise<void> => {
-      if (!session) {
-        throw new Error("Aucune session active.");
-      }
-      try {
-        const updated = { ...session, ...partial };
-        await AsyncStorage.setItem(
-          options.storageKey,
-          JSON.stringify(updated)
-        );
-        setSession(updated);
-      } catch (error) {
-        logger.error("Échec de la mise à jour de session.", error);
-        throw error;
-      }
-    };
+    const updateSession = useCallback(
+      async (partial: Partial<T>): Promise<void> => {
+        if (!session) {
+          throw new Error("Aucune session active.");
+        }
+        try {
+          const updated = { ...session, ...partial };
+          await AsyncStorage.setItem(storageKey, JSON.stringify(updated));
+          setSession(updated);
+        } catch (error) {
+          logger.error("Échec de la mise à jour de session.", error);
+          throw error;
+        }
+      },
+      [session, storageKey]
+    );
 
-    const value: StorageAuth<T> = {
-      session,
-      isAuthenticated: session !== null,
-      isLoading,
-      login,
-      logout,
-      updateSession,
-    };
+    const value: StorageAuth<T> = useMemo(
+      () => ({
+        session,
+        isAuthenticated: session !== null,
+        isLoading,
+        login,
+        logout,
+        updateSession,
+      }),
+      [session, isLoading, login, logout, updateSession]
+    );
 
     return (
       <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

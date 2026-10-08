@@ -58,25 +58,30 @@ export default function DashboardScreen() {
 
   // Pur : ne touche pas l'état (mises à jour dans `settle`/`fail`,
   // appelés depuis les continuations de promesse).
+  // Dépend des identifiants (stables), pas de l'objet profil : chaque
+  // rafraîchissement de session crée une nouvelle identité d'objet qui
+  // re-déclencherait sinon ce chargement en boucle.
+  const pharmacienId = pharmacien?.id;
+  const pharmacieId = pharmacien?.pharmacieId;
   const fetchStats = useCallback((): Promise<{
     stats: DashboardStats | null;
     trend: NotificationPharmacien[];
   }> => {
-    if (!pharmacien?.pharmacieId) {
+    if (!pharmacienId || !pharmacieId) {
       return Promise.resolve({ stats: null, trend: [] });
     }
     return Promise.all([
-      pharmacienAPI.dashboard(pharmacien.id, pharmacien.pharmacieId),
+      pharmacienAPI.dashboard(pharmacienId, pharmacieId),
       // Tendances : la liste complète nourrit le graphique (échec = vide).
       notificationsAPI
-        .list(pharmacien.id, pharmacien.pharmacieId)
+        .list(pharmacienId, pharmacieId)
         .then(({ data }) => data)
         .catch((error: unknown) => {
           logger.warn("Tendances indisponibles.", error);
           return [] as NotificationPharmacien[];
         }),
     ]).then(([stats, trend]) => ({ stats, trend }));
-  }, [pharmacien]);
+  }, [pharmacienId, pharmacieId]);
 
   const settle = useCallback(
     (data: {
