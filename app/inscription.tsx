@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { colors } from "./components/ui";
 import { usePharmacienAuth } from "./context/PharmacienAuthContext";
 import { ApiError, annuaireAPI, pharmacienAPI, type Pharmacie } from "./lib/api";
 import { logger } from "./lib/logger";
@@ -165,6 +166,7 @@ export default function InscriptionScreen() {
             <View>
               <TextInput
                 style={styles.input}
+                placeholderTextColor={colors.textFaint}
                 placeholder="Numéro d'ordre *"
                 value={form.numeroOrdre}
                 onChangeText={(v) => handleChange("numeroOrdre", v)}
@@ -173,6 +175,7 @@ export default function InscriptionScreen() {
               />
               <TextInput
                 style={styles.input}
+                placeholderTextColor={colors.textFaint}
                 placeholder="Nom du pharmacien titulaire *"
                 value={form.nomPharmacienTitulaire}
                 onChangeText={(v) => handleChange("nomPharmacienTitulaire", v)}
@@ -199,6 +202,7 @@ export default function InscriptionScreen() {
               {!selectedPharmacie && (
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor={colors.textFaint}
                   placeholder="Nom de la pharmacie (si absente de la liste)"
                   value={form.nomPharmacie}
                   onChangeText={(v) => handleChange("nomPharmacie", v)}
@@ -207,6 +211,7 @@ export default function InscriptionScreen() {
               )}
               <TextInput
                 style={styles.input}
+                placeholderTextColor={colors.textFaint}
                 placeholder="Numéro WhatsApp *"
                 value={form.whatsapp}
                 onChangeText={(v) => handleChange("whatsapp", v)}
@@ -215,6 +220,7 @@ export default function InscriptionScreen() {
               />
               <TextInput
                 style={styles.input}
+                placeholderTextColor={colors.textFaint}
                 placeholder="Mot de passe (min. 6 caractères)"
                 value={form.password}
                 onChangeText={(v) => handleChange("password", v)}
@@ -223,6 +229,7 @@ export default function InscriptionScreen() {
               />
               <TextInput
                 style={styles.input}
+                placeholderTextColor={colors.textFaint}
                 placeholder="E-mail (optionnel)"
                 value={form.email}
                 onChangeText={(v) => handleChange("email", v)}
@@ -232,6 +239,7 @@ export default function InscriptionScreen() {
               />
               <TextInput
                 style={styles.input}
+                placeholderTextColor={colors.textFaint}
                 placeholder="Téléphone fixe (optionnel)"
                 value={form.telephoneFixe}
                 onChangeText={(v) => handleChange("telephoneFixe", v)}
@@ -240,6 +248,7 @@ export default function InscriptionScreen() {
               />
               <TextInput
                 style={styles.input}
+                placeholderTextColor={colors.textFaint}
                 placeholder="Ville (optionnel)"
                 value={form.ville}
                 onChangeText={(v) => handleChange("ville", v)}
@@ -247,6 +256,7 @@ export default function InscriptionScreen() {
               />
               <TextInput
                 style={styles.input}
+                placeholderTextColor={colors.textFaint}
                 placeholder="Commune (optionnel)"
                 value={form.commune}
                 onChangeText={(v) => handleChange("commune", v)}
@@ -275,6 +285,7 @@ export default function InscriptionScreen() {
               <Text style={styles.modalTitle}>Choisir ma pharmacie</Text>
               <TextInput
                 style={styles.input}
+                placeholderTextColor={colors.textFaint}
                 placeholder="Rechercher…"
                 value={pickerQuery}
                 onChangeText={setPickerQuery}
@@ -378,6 +389,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12,
     backgroundColor: "white",
+    // Couleur explicite : sans elle, Android applique la couleur du thème
+    // système (claire en mode sombre), illisible sur ce fond blanc.
+    color: colors.text,
     fontSize: 16,
     justifyContent: "center",
   },

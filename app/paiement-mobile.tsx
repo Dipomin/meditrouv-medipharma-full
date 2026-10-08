@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { colors } from "./components/ui";
 import { usePharmacienAuth } from "./context/PharmacienAuthContext";
 import { logger } from "./lib/logger";
 import { offlineAwareMessage } from "./lib/offline";
@@ -200,6 +201,7 @@ export default function PaiementMobileScreen() {
                 <Text style={styles.inputLabel}>Numéro de téléphone :</Text>
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor={colors.textFaint}
                   placeholder="Ex: 77123456"
                   value={phoneNumber}
                   onChangeText={setPhoneOverride}
@@ -214,6 +216,7 @@ export default function PaiementMobileScreen() {
                 <Text style={styles.inputLabel}>Code de validation :</Text>
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor={colors.textFaint}
                   placeholder="Entrez le code reçu par SMS"
                   value={validationCode}
                   onChangeText={setValidationCode}
@@ -371,6 +374,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 15,
     backgroundColor: "white",
+    // Couleur explicite : sans elle, Android applique la couleur du thème
+    // système (claire en mode sombre), illisible sur ce fond blanc.
+    color: colors.text,
     fontSize: 16,
     marginBottom: 12,
   },

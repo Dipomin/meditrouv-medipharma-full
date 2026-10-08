@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { unregisterPushOnLogout } from "./components/PushBootstrap";
+import { colors } from "./components/ui";
 import { usePharmacienAuth } from "./context/PharmacienAuthContext";
 import { ApiError, pharmacienAPI } from "./lib/api";
 import { logger } from "./lib/logger";
@@ -221,6 +222,7 @@ export default function ProfilScreen() {
               <>
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor={colors.textFaint}
                   value={form.nomPharmacienTitulaire}
                   onChangeText={(v) =>
                     setForm((previous) => ({
@@ -233,6 +235,7 @@ export default function ProfilScreen() {
                 />
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor={colors.textFaint}
                   value={form.whatsapp}
                   onChangeText={(v) =>
                     setForm((previous) => ({ ...previous, whatsapp: v }))
@@ -243,6 +246,7 @@ export default function ProfilScreen() {
                 />
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor={colors.textFaint}
                   value={form.email}
                   onChangeText={(v) =>
                     setForm((previous) => ({ ...previous, email: v }))
@@ -254,6 +258,7 @@ export default function ProfilScreen() {
                 />
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor={colors.textFaint}
                   value={form.telephoneFixe}
                   onChangeText={(v) =>
                     setForm((previous) => ({
@@ -267,6 +272,7 @@ export default function ProfilScreen() {
                 />
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor={colors.textFaint}
                   value={form.ville}
                   onChangeText={(v) =>
                     setForm((previous) => ({ ...previous, ville: v }))
@@ -276,6 +282,7 @@ export default function ProfilScreen() {
                 />
                 <TextInput
                   style={styles.input}
+                  placeholderTextColor={colors.textFaint}
                   value={form.commune}
                   onChangeText={(v) =>
                     setForm((previous) => ({ ...previous, commune: v }))
@@ -492,6 +499,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 14,
     backgroundColor: "white",
+    // Couleur explicite : sans elle, Android applique la couleur du thème
+    // système (claire en mode sombre), illisible sur ce fond blanc.
+    color: colors.text,
     fontSize: 15,
     marginBottom: 10,
   },
