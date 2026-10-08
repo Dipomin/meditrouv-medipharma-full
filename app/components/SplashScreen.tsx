@@ -1,5 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Animated, Image, StyleSheet, View } from "react-native";
+import {
+  DEFAULT_SPLASH_DURATION_MS,
+  SPLASH_FADE_MS,
+  splashDismissDelay,
+  splashPauseDuration,
+} from "../lib/splash";
 
 interface SplashScreenProps {
   onFinish: () => void;
@@ -8,41 +14,42 @@ interface SplashScreenProps {
 
 export default function SplashScreen({
   onFinish,
-  duration = 3000,
+  duration = DEFAULT_SPLASH_DURATION_MS,
 }: SplashScreenProps) {
   // Valeur stable via useState : pas de lecture de ref pendant le rendu.
   const [fadeAnim] = useState(() => new Animated.Value(0));
+  // Référence vers le rappel courant (affectée dans l'effet uniquement).
+  const onFinishRef = useRef(onFinish);
 
   useEffect(() => {
-    // Pause bornée (jamais négative si duration < 2000).
-    const pause = Math.max(0, duration - 2000);
-    let finishTimer: ReturnType<typeof setTimeout> | null = null;
+    onFinishRef.current = onFinish;
+    // Fermeture garantie par minuterie, même si le rappel de fin
+    // d'animation natif n'est jamais invoqué (blocage constaté sur
+    // appareil : l'appli restait figée sur le logo).
+    const dismissTimer = setTimeout(() => {
+      onFinishRef.current();
+    }, splashDismissDelay(duration));
+    // Animation purement décorative : sa fin ne conditionne plus rien.
     const animation = Animated.sequence([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 1000,
+        duration: SPLASH_FADE_MS,
         useNativeDriver: true,
       }),
-      Animated.delay(pause), // Attendre
+      Animated.delay(splashPauseDuration(duration)), // Attendre
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 1000,
+        duration: SPLASH_FADE_MS,
         useNativeDriver: true,
       }),
     ]);
-    // Animation d'apparition du logo
-    animation.start(() => {
-      // Appeler la fonction onFinish après l'animation
-      finishTimer = setTimeout(() => {
-        onFinish();
-      }, 100); // Petit délai pour assurer une transition fluide
-    });
+    animation.start();
     return () => {
+      clearTimeout(dismissTimer);
       animation.stop();
-      if (finishTimer) {
-        clearTimeout(finishTimer);
-      }
     };
+    // onFinish inclus : un éventuel redémarrage (re-rendu parent) relance
+    // la minuterie, la fermeture restant garantie dans tous les cas.
   }, [fadeAnim, duration, onFinish]);
 
   return (

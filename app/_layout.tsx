@@ -17,9 +17,17 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({});
 
   useEffect(() => {
+    // Le splash natif ne doit jamais rester affiché : repli temporisé
+    // si les polices ou hideAsync restaient en suspens.
+    const fallbackTimer = setTimeout(() => {
+      SplashScreenExpo.hideAsync().catch(() => undefined);
+    }, 5000);
     if (fontsLoaded || fontError) {
-      SplashScreenExpo.hideAsync();
+      SplashScreenExpo.hideAsync().catch(() => undefined);
     }
+    return () => {
+      clearTimeout(fallbackTimer);
+    };
   }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) {
