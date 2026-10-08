@@ -8,10 +8,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { usePharmacienAuth } from "../context/PharmacienAuthContext";
 import { useUnreadCount } from "../lib/useNotifications";
-import { colors } from "./ui/theme";
+import { colors, withBottomInset } from "./ui/theme";
 import {
   getMenuConfig,
   responsiveFontSize,
@@ -35,9 +36,16 @@ export default function GlobalMenu() {
 
   const menuConfig = getMenuConfig();
   const { width: screenWidth } = useScreenDimensions();
+  // Le menu est fixé sous la barre système (edge-to-edge) : il grandit
+  // de l'inset bas pour que les boutons système ne recouvrent pas les libellés.
+  const insets = useSafeAreaInsets();
   const containerStyle = [
     styles.menuContainer,
-    { width: screenWidth, height: menuConfig.height },
+    {
+      width: screenWidth,
+      height: withBottomInset(menuConfig.height, insets.bottom),
+      paddingBottom: insets.bottom,
+    },
   ];
 
   const isActive = (path: string): boolean => pathname.startsWith(path);

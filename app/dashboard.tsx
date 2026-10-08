@@ -10,8 +10,8 @@ import {
   View,
 } from "react-native";
 
+import { DemandeCard } from "./components/DemandeCard";
 import { FilterChip } from "./components/FilterChip";
-import NotificationCard from "./components/NotificationCard";
 import StatCard from "./components/StatCard";
 import { TrendChart } from "./components/TrendChart";
 import {
@@ -25,9 +25,11 @@ import {
   spacing,
 } from "./components/ui";
 import {
+  demandesAPI,
   notificationsAPI,
   pharmacienAPI,
   type DashboardStats,
+  type DemandeInter,
   type NotificationPharmacien,
 } from "./lib/api";
 import { logger } from "./lib/logger";
@@ -40,11 +42,15 @@ const TREND_PERIODS = [
   { id: 30, label: "30 jours" },
 ] as const;
 
+// Aperçu des requêtes inter-pharmacies (reçues + émises, récentes d'abord).
+const RECENT_DEMANDES_LIMIT = 5;
+
 export default function DashboardScreen() {
   const router = useRouter();
   const { pharmacien, isReady } = usePharmacienSession();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [trendItems, setTrendItems] = useState<NotificationPharmacien[]>([]);
+  const [recentDemandes, setRecentDemandes] = useState<DemandeInter[]>([]);
   const [trendDays, setTrendDays] = useState<number>(7);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -66,9 +72,10 @@ export default function DashboardScreen() {
   const fetchStats = useCallback((): Promise<{
     stats: DashboardStats | null;
     trend: NotificationPharmacien[];
+    demandes: DemandeInter[];
   }> => {
     if (!pharmacienId || !pharmacieId) {
-      return Promise.resolve({ stats: null, trend: [] });
+      return Promise.resolve({ stats: null, trend: [], demandes: [] });
     }
     return Promise.all([
       pharmacienAPI.dashboard(pharmacienId, pharmacieId),
@@ -80,16 +87,26 @@ export default function DashboardScreen() {
           logger.warn("Tendances indisponibles.", error);
           return [] as NotificationPharmacien[];
         }),
-    ]).then(([stats, trend]) => ({ stats, trend }));
+      // Aperçu accueil : dernières requêtes inter-pharmacies (échec = vide,
+      // jamais bloquant pour le reste du tableau de bord).
+      demandesAPI
+        .list(pharmacienId, pharmacieId, "all", RECENT_DEMANDES_LIMIT)
+        .catch((error: unknown) => {
+          logger.warn("Requêtes récentes indisponibles.", error);
+          return [] as DemandeInter[];
+        }),
+    ]).then(([stats, trend, demandes]) => ({ stats, trend, demandes }));
   }, [pharmacienId, pharmacieId]);
 
   const settle = useCallback(
     (data: {
       stats: DashboardStats | null;
       trend: NotificationPharmacien[];
+      demandes: DemandeInter[];
     }): void => {
       setStats(data.stats);
       setTrendItems(data.trend);
+      setRecentDemandes(data.demandes);
       setError(null);
       setLoading(false);
       setRefreshing(false);
@@ -281,33 +298,25 @@ export default function DashboardScreen() {
                 />
               </View>
 
-              <Text style={styles.sectionTitle}>Dernières alertes</Text>
-              {stats.notifications.recent.length === 0 ? (
+              <Text style={styles.sectionTitle}>Dernières requêtes</Text>
+              {recentDemandes.length === 0 ? (
                 <EmptyState
-                  icon="notifications-none"
-                  title="Aucune alerte pour le moment"
-                  message="Les recherches de médicaments des patients apparaîtront ici et sur WhatsApp."
+                  icon="campaign"
+                  title="Aucune requête pour le moment"
+                  message="Les requêtes inter-pharmacies reçues et émises apparaîtront ici."
                 />
               ) : (
-                stats.notifications.recent.map((item) => (
-                  <NotificationCard
+                recentDemandes.map((item) => (
+                  <DemandeCard
                     key={item.id}
-                    item={{
-                      id: item.id,
-                      pharmacieId: pharmacien.pharmacieId ?? "",
-                      pharmacienId: null,
-                      rechercheId: null,
-                      demandeId: null,
-                      medicamentNom: item.medicamentNom,
-                      message: item.message,
-                      statut: item.statut,
-                      whatsappSent: false,
-                      whatsappStatus: null,
-                      readAt: null,
-                      createdAt: item.createdAt,
-                    }}
-                    onPress={() =>
-                      router.push(`/notification-details/${item.id}`)
+                    item={item}
+                    tab={
+                      item.pharmacieDemandeuseId === pharmacien.pharmacieId
+                        ? "emises"
+                        : "recues"
+                    }
+                    onPress={(pressed) =>
+                      router.push(`/demande-details/${pressed.id}`)
                     }
                   />
                 ))

@@ -18,6 +18,7 @@ import {
   postJsonAuth,
 } from "./apiClient";
 import { getApiUrl } from "./config";
+import { demandesListParams, type DemandesListSens } from "./demandes";
 import { logger } from "./logger";
 import {
   asRecord,
@@ -654,12 +655,12 @@ export const demandesAPI = {
   list: async (
     pharmacienId: string,
     pharmacieId: string,
-    sens: "all" | "emises" | "recues" = "all"
+    sens: DemandesListSens = "all",
+    limit?: number
   ): Promise<DemandeInter[]> => {
     try {
-      const params = new URLSearchParams({ pharmacieId, sens });
       const payload = await getJsonAuth<unknown>(
-        `${getApiUrl()}/demandes?${params.toString()}`,
+        `${getApiUrl()}/demandes?${demandesListParams(pharmacieId, sens, limit)}`,
         pharmacienId
       );
       return asPaginated(payload, "demandes", normalizeDemande).data;

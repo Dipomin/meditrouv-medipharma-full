@@ -97,3 +97,21 @@ export const resumeLignes = (
 /** Compteur de propositions (« 3/5 »). */
 export const compteurPropositions = (count: number): string =>
   `${count}/${DEMANDES_PROPOSITIONS_MAX}`;
+
+export type DemandesListSens = "all" | "emises" | "recues";
+
+/**
+ * Paramètres de `GET /demandes` (`limit` optionnel : aperçu accueil).
+ * Le serveur trie par récence décroissante et borne `limit` à 100.
+ */
+export const demandesListParams = (
+  pharmacieId: string,
+  sens: DemandesListSens,
+  limit?: number
+): string => {
+  const params = new URLSearchParams({ pharmacieId, sens });
+  if (limit !== undefined) {
+    params.set("limit", String(limit));
+  }
+  return params.toString();
+};

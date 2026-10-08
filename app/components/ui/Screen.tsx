@@ -16,9 +16,12 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
-import { colors, globalMenuReserve } from "./theme";
+import { colors, globalMenuReserve, withBottomInset } from "./theme";
 
 export type BackgroundSource = number | { uri: string };
 
@@ -37,33 +40,43 @@ export const Screen = ({
   statusBarStyle = "dark-content",
   reserveMenuSpace = false,
   style,
-}: ScreenProps) => (
-  <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-    {background ? (
-      <ImageBackground
-        source={background}
-        style={styles.background}
-        resizeMode="cover"
-      >
-        <StatusBar barStyle={statusBarStyle} />
-        <View
-          style={[
-            styles.content,
-            reserveMenuSpace && styles.menuReserve,
-            style,
-          ]}
+}: ScreenProps) => {
+  // Le menu bas grandit de l'inset système : la réserve suit, sinon le
+  // bas du contenu passe sous le menu sur les appareils edge-to-edge.
+  const insets = useSafeAreaInsets();
+  const menuReserve = {
+    paddingBottom: withBottomInset(globalMenuReserve, insets.bottom),
+  };
+  return (
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      {background ? (
+        <ImageBackground
+          source={background}
+          style={styles.background}
+          resizeMode="cover"
         >
+          <StatusBar barStyle={statusBarStyle} />
+          <View
+            style={[
+              styles.content,
+              reserveMenuSpace && menuReserve,
+              style,
+            ]}
+          >
+            {children}
+          </View>
+        </ImageBackground>
+      ) : (
+        <View
+          style={[styles.content, reserveMenuSpace && menuReserve, style]}
+        >
+          <StatusBar barStyle={statusBarStyle} />
           {children}
         </View>
-      </ImageBackground>
-    ) : (
-      <View style={[styles.content, reserveMenuSpace && styles.menuReserve, style]}>
-        <StatusBar barStyle={statusBarStyle} />
-        {children}
-      </View>
-    )}
-  </SafeAreaView>
-);
+      )}
+    </SafeAreaView>
+  );
+};
 
 const styles = StyleSheet.create({
   safe: {
@@ -76,8 +89,5 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  menuReserve: {
-    paddingBottom: globalMenuReserve,
   },
 });

@@ -9,6 +9,7 @@ import {
   minTouchTarget,
   radius,
   spacing,
+  withBottomInset,
   withOpacity,
 } from "../app/components/ui/theme.ts";
 
@@ -84,5 +85,19 @@ describe("theme", () => {
         `contraste insuffisant ${label} : ${contrastRatio(fg, bg)}`
       );
     }
+  });
+});
+
+describe("withBottomInset", () => {
+  it("grandit menu et réserve de l'inset bas (edge-to-edge)", () => {
+    // Régression : sans inset, les boutons système Android recouvraient
+    // les libellés du menu fixé en bas d'écran.
+    assert.equal(withBottomInset(60, 0), 60);
+    assert.equal(withBottomInset(60, 24), 84);
+    assert.equal(withBottomInset(globalMenuReserve, 48), 148);
+  });
+
+  it("ignore les insets négatifs", () => {
+    assert.equal(withBottomInset(60, -8), 60);
   });
 });

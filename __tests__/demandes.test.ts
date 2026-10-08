@@ -5,6 +5,7 @@ import {
   canRespond,
   compteurPropositions,
   demandeStatutMeta,
+  demandesListParams,
   formatPrix,
   isUrgentDemande,
   lignePropositionTotal,
@@ -77,5 +78,24 @@ describe("demandes", () => {
     );
     assert.equal(resumeLignes([]), "—");
     assert.equal(compteurPropositions(3), "3/5");
+  });
+});
+
+describe("demandesListParams", () => {
+  it("construit sens + limite pour l'aperçu accueil", () => {
+    const params = new URLSearchParams(
+      demandesListParams("pha-1", "all", 5)
+    );
+    assert.equal(params.get("pharmacieId"), "pha-1");
+    assert.equal(params.get("sens"), "all");
+    assert.equal(params.get("limit"), "5");
+  });
+
+  it("omet limit quand non fourni (liste complète)", () => {
+    const params = new URLSearchParams(
+      demandesListParams("pha-1", "recues")
+    );
+    assert.equal(params.get("sens"), "recues");
+    assert.equal(params.has("limit"), false);
   });
 });

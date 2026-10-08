@@ -82,6 +82,14 @@ export const minTouchTarget = 44;
 export const globalMenuReserve = 100;
 
 /**
+ * Hauteur tenant compte de la barre système Android/iOS : le menu fixé
+ * en bas d'écran et la réserve de contenu doivent grandir de l'inset
+ * bas, sinon les boutons système recouvrent le menu (edge-to-edge).
+ */
+export const withBottomInset = (base: number, insetBottom: number): number =>
+  base + Math.max(0, insetBottom);
+
+/**
  * Convertit un hexadécimal `#rrggbb` en chaîne `rgba(...)`.
  * Lève une erreur si le format est invalide.
  */
