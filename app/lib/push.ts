@@ -1,18 +1,21 @@
 /**
  * Push + son d'alerte Medipharma.
  *
- * Les modules natifs `expo-notifications` et `expo-audio` sont OPTIONNELS :
- * sans eux, l'app reste fonctionnelle (in-app + WhatsApp + vibration).
- * `npx expo install expo-notifications expo-audio` + rebuild natif active
- * le push avec son (voir PUSH_SETUP.md).
- *
- * Le chargement dynamique (require non statique) évite à Metro d'échouer
- * au bundling quand les modules sont absents ; chaque usage est gardé par
- * une détection de capacités (`typeof ... === "function"`).
+ * `expo-notifications` et `expo-audio` sont des dépendances déclarées
+ * (package.json + plugins app.json) : imports STATIQUES obligatoires.
+ * L'ancien `require(nom)` dynamique n'était pas résolu par Metro en build
+ * release : "Requiring unknown module" était remonté comme erreur FATALE
+ * par `guardedLoadModule` (le try/catch ne l'interceptait pas), ce qui
+ * faisait planter l'APK dès l'ouverture d'une session (inscription,
+ * connexion, relance avec session stockée).
+ * Chaque usage reste gardé par une détection de capacités
+ * (`typeof ... === "function"`) : ex. web, module natif non lié.
  */
 
 import Constants from "expo-constants";
+import * as ExpoAudio from "expo-audio";
 import * as Haptics from "expo-haptics";
+import * as ExpoNotifications from "expo-notifications";
 import { Platform } from "react-native";
 
 import { logger } from "./logger";
@@ -62,24 +65,13 @@ type AudioModule = {
 
 type UnknownRecord = Record<string, unknown>;
 
-// require() dynamique : Metro ne peut pas le résoudre statiquement et le
-// laisse au runtime (erreur capturée si le module est absent).
-const optionalRequire = (id: string): unknown => {
-  try {
-    const req = require as (name: string) => unknown;
-    return req(id);
-  } catch {
-    return null;
-  }
-};
-
 let cachedNotifications: NotificationsModule | null | undefined;
 let cachedAudio: AudioModule | null | undefined;
 
 /** Module expo-notifications si installé (sinon null). */
 export const loadNotificationsModule = (): NotificationsModule | null => {
   if (cachedNotifications === undefined) {
-    const mod = optionalRequire("expo-notifications") as UnknownRecord | null;
+    const mod = ExpoNotifications as unknown as UnknownRecord | null;
     cachedNotifications =
       mod !== null &&
       typeof mod.getExpoPushTokenAsync === "function" &&
@@ -93,7 +85,7 @@ export const loadNotificationsModule = (): NotificationsModule | null => {
 /** Module expo-audio si installé (sinon null). */
 export const loadAudioModule = (): AudioModule | null => {
   if (cachedAudio === undefined) {
-    const mod = optionalRequire("expo-audio") as UnknownRecord | null;
+    const mod = ExpoAudio as unknown as UnknownRecord | null;
     cachedAudio =
       mod !== null && typeof mod.createAudioPlayer === "function"
         ? (mod as unknown as AudioModule)

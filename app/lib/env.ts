@@ -8,7 +8,9 @@
  * repli explicite vers l'URL de production connue.
  */
 
-const FALLBACK_API_BASE_URL = "https://meditrouv-admin.vercel.app/api";
+// (HTTP 402 DEPLOYMENT_DISABLED). `.env` étant ignoré par git, les builds
+// EAS n'en disposent pas et utilisent ce repli.
+const FALLBACK_API_BASE_URL = "https://admin.meditrouv.ci/api";
 
 // Accès statiques uniquement : Expo interdit l'accès dynamique à process.env
 // (résolution au moment du bundle).
